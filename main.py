@@ -16,14 +16,14 @@ import logging
 import argparse
 import sys
 from typing import Union, Optional, List, Dict, Any, Tuple
-from ollama import AsyncClient
+from model.ai_models import generate_summary_with_ai
 from utils.config import (
     TELEGRAM_API_ID, 
     TELEGRAM_API_HASH, 
     TELEGRAM_STRING_SESSION,
     TELEGRAM_CHANNEL_ID,
     OLLAMA_MODEL,
-    SUMMARY_PROMPT_TEMPLATE,
+    CLAUDE_MODEL,
     OVERALL_PROMPT_TEMPLATE,
     PARTICIPANT_PROMPT_TEMPLATE,
     DEFAULT_MESSAGE_LIMIT
@@ -41,37 +41,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def generate_summary_with_ollama(
-    messages_text: str, 
-    model: str = OLLAMA_MODEL, 
-    prompt_template: str = SUMMARY_PROMPT_TEMPLATE
-) -> str:
-    """
-    Generate a summary using Ollama's AsyncClient.
-    
-    Args:
-        messages_text: The text of messages to summarize
-        model: The model to use for summarization
-        prompt_template: The prompt template to use for the summary
-        
-    Returns:
-        The generated summary
-    """
-    try:
-        # Format the prompt with the message text
-        prompt = prompt_template.format(messages=messages_text)
-        
-        # Generate summary using AsyncClient
-        logger.info(f"Generating summary using {model} model via Ollama AsyncClient")
-        message = {'role': 'user', 'content': prompt}
-        response = await AsyncClient().chat(model=model, messages=[message])
-        
-        ai_summary = response['message']['content']
-        logger.info("AI summary generated successfully")
-        return ai_summary
-    except Exception as e:
-        logger.error(f"Error generating AI summary: {e}")
-        return f"Error generating summary: {str(e)}"
+
 
 async def analyze_messages(
     api_id: int, 
@@ -266,7 +236,7 @@ async def generate_summaries(
     
     # Generate overall summary using the template from config
     logger.info("Generating overall summary of all messages")
-    overall_summary = await generate_summary_with_ollama(
+    overall_summary = await generate_summary_with_ai(
         all_messages_text, 
         model,
         OVERALL_PROMPT_TEMPLATE
@@ -295,7 +265,7 @@ async def generate_summaries(
         
         # Generate summary for this participant
         try:
-            summary = await generate_summary_with_ollama(
+            summary = await generate_summary_with_ai(
                 participant_text,
                 model,
                 prompt
@@ -337,8 +307,8 @@ async def main():
                         help='Output format (default: text)')
     parser.add_argument('--no-summary', action='store_true',
                         help='Skip AI summary generation')
-    parser.add_argument('--model', type=str, default=OLLAMA_MODEL,
-                        help=f'Ollama model to use (default: {OLLAMA_MODEL})')
+    parser.add_argument('--model', type=str, default=CLAUDE_MODEL,
+                        help=f'Ollama model to use (default: {CLAUDE_MODEL})')
     args = parser.parse_args()
     
     # Use the default channel ID from config if not specified in args

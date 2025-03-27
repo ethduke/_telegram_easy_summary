@@ -13,6 +13,9 @@ message_fetching:
 # Settings for AI model usage and configuration
 ai:
   model: "deepseek-r1"  # Model to use for summarization
+  claude_model: "claude-3-5-sonnet-latest"
+
+  claude_output_tokens: 2048
   # General summary prompt (kept for backward compatibility)
   summary_prompt: >
     Analyze the following Telegram chat messages and create a concise summary organized by participants. 
@@ -24,8 +27,6 @@ ai:
   overall_prompt: >
     Extract a list of all projects, cryptocurrencies, or platforms mentioned in these Telegram chat messages.
     
-    Here are the messages:
-    
     {messages}
   
   # Participant-specific summary prompt
@@ -33,7 +34,6 @@ ai:
     Create a very brief summary (2-4 sentences maximum) of {participant}'s key messages in this chat.
     Focus only on substantive content about projects, opinions, or strategies they mentioned.
     
-    Here are {participant}'s messages:
     
     {messages}
 

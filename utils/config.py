@@ -1,6 +1,6 @@
 import os
 import yaml
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -75,11 +75,16 @@ TELEGRAM_CHANNEL_ID = get_env_or_config(
     None
 )
 
+# ANTHROPIC
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+CLAUDE_OUTPUT_TOKENS = CONFIG.get('ai', {}).get('claude_output_tokens', 2048)
+
 # Get message fetching settings
 DEFAULT_MESSAGE_LIMIT = CONFIG.get('message_fetching', {}).get('default_limit', 100)
 
 # Get AI model settings
 OLLAMA_MODEL = CONFIG.get('ai', {}).get('model', 'llama2')
+CLAUDE_MODEL = CONFIG.get('ai', {}).get('claude_model', 'claude-3-5-sonnet-latest')
 SUMMARY_PROMPT_TEMPLATE = CONFIG.get('ai', {}).get('summary_prompt', DEFAULT_SUMMARY_PROMPT)
 OVERALL_PROMPT_TEMPLATE = CONFIG.get('ai', {}).get('overall_prompt', DEFAULT_OVERALL_PROMPT)
 PARTICIPANT_PROMPT_TEMPLATE = CONFIG.get('ai', {}).get('participant_prompt', DEFAULT_PARTICIPANT_PROMPT)
