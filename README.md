@@ -1,12 +1,12 @@
 # Telegram Easy Summary
 
-A Python tool that fetches messages from Telegram chats or channels and generates AI-powered summaries using Ollama models.
+A Python tool that fetches messages from Telegram chats or channels and generates AI-powered summaries using Claude 3.5 Sonnet or Ollama models.
 
 ## Features
 
 - Fetch messages from any Telegram channel or group chat
 - Focus on messages from specific users while maintaining conversation context
-- Generate concise AI-powered summaries using locally hosted Ollama models
+- Generate concise AI-powered summaries using Claude 3.5 Sonnet (default) or locally hosted Ollama models
 - Analyze messages by participant, providing quick individual summaries for each user
 - Configurable through `config.yaml`
 
@@ -15,7 +15,8 @@ A Python tool that fetches messages from Telegram chats or channels and generate
 - Python 3.7+
 - Telegram API credentials (API ID and API Hash)
 - Telegram session string
-- [Ollama](https://ollama.ai/) installed and running with the model specified in config.yaml (default: deepseek-r1)
+- Anthropic API key for Claude 3.5 (default model)
+- [Ollama](https://ollama.ai/) installed and running if using Ollama models
 
 ## Installation
 
@@ -36,12 +37,13 @@ A Python tool that fetches messages from Telegram chats or channels and generate
    pip install -r requirements.txt
    ```
 
-4. Configure your `.env` file with Telegram API credentials:
+4. Configure your `.env` file with required API credentials:
    ```
    TELEGRAM_API_ID=your_api_id
    TELEGRAM_API_HASH=your_api_hash
    TELEGRAM_STRING_SESSION=your_session_string
    TELEGRAM_CHANNEL_ID=your_default_channel_id
+   ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
 
 5. (Optional) Customize settings in `config.yaml`
@@ -86,7 +88,7 @@ python main.py -o summary.txt
 - `-u`, `--users`: List of users to focus on (optional)
 - `-o`, `--output`: Output file path (optional, output to console if not specified)
 - `-s`, `--summarize`: Enable/disable summarization (default: enabled)
-- `-m`, `--model`: Ollama model to use (default: from config)
+- `-m`, `--model`: Model to use for summarization (default: claude-3-5-sonnet, can be set to an Ollama model name)
 
 ## Example Output
 
@@ -115,7 +117,8 @@ You can customize the behavior of the tool by editing the `config.yaml` file:
 
 - `DEFAULT_MESSAGE_LIMIT`: Default number of messages to fetch
 - `DEFAULT_TELEGRAM_CHANNEL_ID`: Default channel to analyze
-- `OLLAMA_MODEL`: Model to use for summarization
+- `DEFAULT_MODEL`: Default model to use for summarization (claude-3-5-sonnet by default)
+- `OLLAMA_MODEL`: Default Ollama model to use if using Ollama
 - `SUMMARY_PROMPT_TEMPLATE`: Prompt Template for generating summaries
 - `telegram_client`: Telegram client configuration options
 
