@@ -8,6 +8,7 @@ A Python tool that fetches messages from Telegram chats or channels and generate
 - Focus on messages from specific users while maintaining conversation context
 - Generate concise AI-powered summaries using Claude 3.5 Sonnet (default) or locally hosted Ollama models
 - Analyze messages by participant, providing quick individual summaries for each user
+- Fetch only unread messages from your channels with a single flag
 - Configurable through `config.yaml`
 
 ## Prerequisites
@@ -81,6 +82,16 @@ Save the output to a file:
 python main.py -o summary.txt
 ```
 
+Get only unread messages from your default channel:
+```
+python main.py --unread
+```
+
+You can combine options:
+```
+python main.py --unread -o unread_summary.txt --model llama3
+```
+
 ### Command Line Options
 
 - `-c`, `--chat_id`: Telegram chat ID or username (default: from config)
@@ -89,6 +100,7 @@ python main.py -o summary.txt
 - `-o`, `--output`: Output file path (optional, output to console if not specified)
 - `-s`, `--summarize`: Enable/disable summarization (default: enabled)
 - `-m`, `--model`: Model to use for summarization (default: claude-3-5-sonnet, can be set to an Ollama model name)
+- `--unread`: Fetch only unread messages from the channel (uses the channel from config if none specified)
 
 ## Example Output
 

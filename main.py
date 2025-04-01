@@ -51,7 +51,8 @@ async def analyze_messages(
     target_users: Optional[List[str]] = None, 
     limit: int = 200, 
     summarize: bool = True,
-    model: str = OLLAMA_MODEL
+    model: str = OLLAMA_MODEL,
+    unread_only: bool = False
 ) -> Dict[str, Any]:
     """
     Fetch and analyze messages from a Telegram chat, with optional user filtering.
@@ -65,6 +66,7 @@ async def analyze_messages(
         limit: Maximum number of messages to fetch
         summarize: Whether to generate a summary using Ollama
         model: Ollama model to use for summarization
+        unread_only: Whether to fetch only unread messages
         
     Returns:
         Analysis results including conversation structure and summaries
@@ -75,14 +77,29 @@ async def analyze_messages(
     
     # Use async context manager for the analyzer
     async with TelegramMessageAnalyzer(api_id, api_hash, session_string) as analyzer:
-        # Fetch messages
-        messages, chat_title = await analyzer.fetch_messages(chat_id, limit=limit)
-        
-        if not messages:
-            return {
-                "status": "error",
-                "message": "No messages found in the specified chat"
-            }
+        if unread_only:
+            # Fetch only unread messages from the specified channel
+            unread_data = await analyzer.get_channel_unread_messages(chat_id)
+            
+            if unread_data["unread_count"] == 0:
+                return {
+                    "status": "info",
+                    "message": "No unread messages found in the specified chat",
+                    "chat_title": unread_data["chat_title"]
+                }
+            
+            # Extract messages from the unread data
+            messages = unread_data["unread_messages"]
+            chat_title = unread_data["chat_title"]
+        else:
+            # Fetch regular messages
+            messages, chat_title = await analyzer.fetch_messages(chat_id, limit=limit)
+            
+            if not messages:
+                return {
+                    "status": "error",
+                    "message": "No messages found in the specified chat"
+                }
         
         # Process and filter messages
         filtered_messages, extended_messages = filter_and_extend_messages(messages, target_users)
@@ -118,6 +135,10 @@ async def analyze_messages(
                 "by_participant": participant_summaries
             }
         }
+        
+        # Add unread specific information if requested
+        if unread_only:
+            results["unread_count"] = unread_data["unread_count"]
         
         return results
 
@@ -308,7 +329,9 @@ async def main():
     parser.add_argument('--no-summary', action='store_true',
                         help='Skip AI summary generation')
     parser.add_argument('--model', type=str, default=CLAUDE_MODEL,
-                        help=f'Ollama model to use (default: {CLAUDE_MODEL})')
+                        help=f'Model to use for summarization (default: {CLAUDE_MODEL})')
+    parser.add_argument('--unread', action='store_true',
+                        help='Fetch only unread messages from the channel')
     args = parser.parse_args()
     
     # Use the default channel ID from config if not specified in args
@@ -328,7 +351,8 @@ async def main():
             args.users,
             args.num_messages,
             not args.no_summary,
-            args.model
+            args.model,
+            args.unread
         )
         
         # Format and output results

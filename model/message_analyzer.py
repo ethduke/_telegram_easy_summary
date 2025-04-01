@@ -238,3 +238,200 @@ class TelegramMessageAnalyzer:
         except Exception as e:
             self.logger.error(f"Error fetching messages: {e}")
             return [], chat_title 
+
+    async def get_channel_unread_messages(self, channel_id: Union[str, int]) -> Dict[str, Any]:
+        """
+        Get unread messages only from the specified channel (usually from config).
+        
+        Args:
+            channel_id: Channel ID to fetch unread messages from
+            
+        Returns:
+            Dictionary containing chat info and unread messages
+        """
+        self.logger.info(f"Fetching unread messages from channel {channel_id}")
+        
+        try:
+            # Convert channel_id to appropriate peer
+            peer = self.get_peer_from_id(channel_id) if isinstance(channel_id, (str, int)) else channel_id
+            
+            # Get chat entity and title
+            try:
+                chat_entity = await self.client.get_entity(peer)
+                chat_title = getattr(chat_entity, 'title', str(channel_id))
+            except Exception as e:
+                self.logger.error(f"Error getting chat entity: {e}")
+                chat_title = str(channel_id)
+            
+            # Find the dialog with unread messages
+            dialog = None
+            unread_count = 0
+            
+            # Iterate through dialogs to find the one matching our peer
+            async for d in self.client.iter_dialogs():
+                if d.entity.id == getattr(chat_entity, 'id', None):
+                    dialog = d
+                    unread_count = dialog.unread_count
+                    break
+            
+            if not dialog:
+                self.logger.warning(f"Could not find dialog for channel {chat_title}")
+                print(f"Could not find dialog for channel {chat_title}")
+                return {
+                    "chat_id": getattr(chat_entity, 'id', None),
+                    "chat_title": chat_title,
+                    "unread_count": 0,
+                    "unread_messages": []
+                }
+            
+            # If no unread messages, return empty result
+            if unread_count == 0:
+                self.logger.info(f"No unread messages in channel {chat_title}")
+                print(f"No unread messages in channel {chat_title}")
+                return {
+                    "chat_id": getattr(chat_entity, 'id', None),
+                    "chat_title": chat_title,
+                    "unread_count": 0,
+                    "unread_messages": []
+                }
+            
+            print(f"Found {unread_count} unread messages in {chat_title}, processing...")
+            self.logger.info(f"Found {unread_count} unread messages in {chat_title}, fetching...")
+            
+            # Get unread messages for this dialog
+            unread_messages = []
+            message_count = 0
+            skipped_count = 0
+            
+            # Keep track of skipped message types
+            skipped_types = {}
+            
+            # Fetch only unread messages (typically, unread messages are the most recent ones)
+            async for message in self.client.iter_messages(peer, limit=unread_count):
+                message_count += 1
+                
+                # Check if it's a service message (like user joined, etc.)
+                is_service_message = hasattr(message, 'action') and message.action
+                
+                # Skip non-text messages but count their types
+                if is_service_message:
+                    # Handle service messages
+                    message_type = "service message"
+                    skipped_types[message_type] = skipped_types.get(message_type, 0) + 1
+                    self.logger.debug(f"Skipping service message")
+                    skipped_count += 1
+                    continue
+                elif not message.text:
+                    # Determine message type
+                    message_type = "unknown"
+                    # Safely check for media attributes
+                    if hasattr(message, 'photo') and message.photo:
+                        message_type = "photo"
+                    elif hasattr(message, 'video') and message.video:
+                        message_type = "video"
+                    elif hasattr(message, 'document') and message.document:
+                        message_type = "document"
+                    elif hasattr(message, 'sticker') and message.sticker:
+                        message_type = "sticker"
+                    elif hasattr(message, 'gif') and message.gif:
+                        message_type = "gif"
+                    elif hasattr(message, 'voice') and message.voice:
+                        message_type = "voice message"
+                    elif hasattr(message, 'audio') and message.audio:
+                        message_type = "audio"
+                    elif hasattr(message, 'poll') and message.poll:
+                        message_type = "poll"
+                    elif hasattr(message, 'contact') and message.contact:
+                        message_type = "contact"
+                    elif hasattr(message, 'location') and message.location:
+                        message_type = "location"
+                    
+                    # Update skipped type counter
+                    skipped_types[message_type] = skipped_types.get(message_type, 0) + 1
+                    
+                    self.logger.debug(f"Skipping non-text message (type: {message_type})")
+                    skipped_count += 1
+                    continue
+                
+                # Get message sender
+                try:
+                    sender = await message.get_sender()
+                    sender_name = self.get_user_display_name(sender)
+                    sender_id = sender.id
+                except Exception as e:
+                    self.logger.warning(f"Error getting sender: {e}")
+                    sender_name = "Unknown"
+                    sender_id = None
+                
+                # Check if message is forwarded
+                is_forwarded = False
+                fwd_from_name = None
+                if hasattr(message, 'fwd_from') and message.fwd_from:
+                    is_forwarded = True
+                    # Try to get the original sender name
+                    if hasattr(message.fwd_from, 'from_name') and message.fwd_from.from_name:
+                        fwd_from_name = message.fwd_from.from_name
+                    elif hasattr(message.fwd_from, 'from_id'):
+                        try:
+                            fwd_from_entity = await self.client.get_entity(message.fwd_from.from_id)
+                            fwd_from_name = self.get_user_display_name(fwd_from_entity)
+                        except:
+                            fwd_from_name = "Unknown Source"
+                    else:
+                        fwd_from_name = "Unknown Source"
+                
+                # Create message dictionary
+                msg_dict = {
+                    "id": message.id,
+                    "datetime": message.date.isoformat(),
+                    "timestamp": message.date.strftime("%Y-%m-%d %H:%M:%S"),
+                    "text": message.text,
+                    "sender_name": sender_name,
+                    "sender_id": sender_id,
+                    "is_reply": message.is_reply,
+                    "is_forwarded": is_forwarded,
+                    "forwarded_from": fwd_from_name if is_forwarded else None
+                }
+                
+                # Add reply information if applicable
+                if message.is_reply:
+                    msg_dict["reply_to_msg_id"] = message.reply_to.reply_to_msg_id
+                
+                unread_messages.append(msg_dict)
+            
+            # Update unread count to reflect actual text messages
+            actual_unread_count = len(unread_messages)
+            
+            chat_info = {
+                "chat_id": getattr(chat_entity, 'id', None),
+                "chat_title": chat_title,
+                "unread_count": actual_unread_count,
+                "unread_messages": unread_messages
+            }
+            
+            # Log final summary
+            self.logger.info(f"Successfully fetched {actual_unread_count} unread messages from {chat_title}")
+            
+            # Generate summary of skipped message types
+            skipped_summary = ", ".join([f"{count} {msg_type}s" for msg_type, count in skipped_types.items()])
+            
+            # Print final summary
+            print(f"\n==== UNREAD MESSAGES SUMMARY ====")
+            print(f"Channel: {chat_title}")
+            print(f"Total unread messages: {message_count}")
+            print(f"Processed text messages: {actual_unread_count}")
+            
+            if skipped_count > 0:
+                print(f"Skipped non-text messages: {skipped_count} ({skipped_summary})")
+            
+            return chat_info
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching unread messages from channel: {e}")
+            print(f"Error fetching unread messages: {e}")
+            return {
+                "chat_id": None,
+                "chat_title": str(channel_id),
+                "unread_count": 0,
+                "unread_messages": []
+            } 
