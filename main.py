@@ -5,7 +5,7 @@ Telegram Message Analyzer
 This script fetches and analyzes messages from Telegram chats, with options to:
 1. Focus on specific users' messages
 2. Preserve conversation context
-3. Generate AI-powered summaries using Ollama
+3. Generate AI-powered summaries using an LLM
 
 Usage:
   python main.py -c CHANNEL_ID -u USERNAME1 USERNAME2 -n 200 -o output.md -f markdown
@@ -64,8 +64,8 @@ async def analyze_messages(
         chat_id: Chat ID to analyze
         target_users: List of usernames or user IDs to focus on
         limit: Maximum number of messages to fetch
-        summarize: Whether to generate a summary using Ollama
-        model: Ollama model to use for summarization
+        summarize: Whether to generate a summary using an LLM
+        model:  (Ollama or Claude) model to use for summarization
         unread_only: Whether to fetch only unread messages
         
     Returns:
@@ -237,7 +237,7 @@ async def generate_summaries(
     Args:
         extended_messages: List of all messages with context
         participants: Dictionary mapping participant names to their messages
-        model: Ollama model to use for summarization
+        model: (Ollama or Claude) model to use for summarization
         
     Returns:
         Tuple of (overall summary, participant summaries dictionary)
