@@ -50,7 +50,6 @@ async def analyze_messages(
     chat_id: Union[str, int], 
     target_users: Optional[List[str]] = None, 
     limit: int = 200, 
-    summarize: bool = True,
     model: str = OLLAMA_MODEL,
     unread_only: bool = False
 ) -> Dict[str, Any]:
@@ -64,7 +63,6 @@ async def analyze_messages(
         chat_id: Chat ID to analyze
         target_users: List of usernames or user IDs to focus on
         limit: Maximum number of messages to fetch
-        summarize: Whether to generate a summary using an LLM
         model:  (Ollama or Claude) model to use for summarization
         unread_only: Whether to fetch only unread messages
         
@@ -111,7 +109,7 @@ async def analyze_messages(
         overall_summary = None
         participant_summaries = {}
         
-        if summarize and extended_messages:
+        if extended_messages:
             # Generate summaries
             overall_summary, participant_summaries = await generate_summaries(
                 extended_messages, 
@@ -326,8 +324,6 @@ async def main():
                         help='Output file for results (default: print to console)')
     parser.add_argument('-f', '--format', choices=['text', 'json', 'markdown'], default='text',
                         help='Output format (default: text)')
-    parser.add_argument('--no-summary', action='store_true',
-                        help='Skip AI summary generation')
     parser.add_argument('--model', type=str, default=CLAUDE_MODEL,
                         help=f'Model to use for summarization (default: {CLAUDE_MODEL})')
     parser.add_argument('--unread', action='store_true',
@@ -350,7 +346,6 @@ async def main():
             chat_id,
             args.users,
             args.num_messages,
-            not args.no_summary,
             args.model,
             args.unread
         )
