@@ -4,7 +4,6 @@ from telethon.sessions import StringSession
 import utils.config as config
 import asyncio
 import sys
-import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

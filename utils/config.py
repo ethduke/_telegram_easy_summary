@@ -1,32 +1,17 @@
+"""
+Config
+
+This module provides functionality to load configuration from config.yaml file.
+"""
+
 import os
 import yaml
 from typing import Dict, Any
+from pathlib import Path
+from utils.prompt_loader import get_prompt
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
-
-# Default summary prompt template
-DEFAULT_SUMMARY_PROMPT = (
-    "Analyze and summarize the following Telegram messages, identifying distinct conversation topics. "
-    "For each topic, provide a concise summary. Format your response with clear topic headers. "
-    "Here are the messages:\n\n{messages}"
-)
-
-# Default overall prompt template
-DEFAULT_OVERALL_PROMPT = (
-    "Create a very concise summary (maximum 5 sentences) of these Telegram chat messages. "
-    "Focus on the most important discussions, projects mentioned, and key insights. "
-    "Format your response with a brief summary and key points discussed. "
-    "Here are the messages:\n\n{messages}"
-)
-
-# Default participant prompt template
-DEFAULT_PARTICIPANT_PROMPT = (
-    "Create a very brief summary (2-4 sentences maximum) of {participant}'s key messages in this chat. "
-    "Focus only on substantive content about projects, opinions, or strategies they mentioned. "
-    "Here are {participant}'s messages:\n\n{messages}"
-)
 
 def load_config() -> Dict[str, Any]:
     """Load configuration from config.yaml file with structured format."""
@@ -42,17 +27,6 @@ def load_config() -> Dict[str, Any]:
 
 # Load the configuration
 CONFIG = load_config()
-
-# Helper function to get environment variable with fallback to config or default
-def get_env_or_config(env_key: str, config_section: str, config_key: str, default: Any = None) -> Any:
-    """Get value from environment variable, structured config, or default in that order of preference"""
-    env_value = os.getenv(env_key)
-    if env_value:
-        return env_value
-    
-    section = CONFIG.get(config_section, {})
-    return section.get(config_key, default)
-
 # Telegram API credentials from environment variables
 try:
     TELEGRAM_API_ID = int(os.getenv('TELEGRAM_API_ID', '0'))
@@ -68,12 +42,7 @@ if not TELEGRAM_API_HASH:
 
 # Get Telegram-related configs
 TELEGRAM_STRING_SESSION = os.getenv('TELEGRAM_STRING_SESSION')
-TELEGRAM_CHANNEL_ID = get_env_or_config(
-    'DEFAULT_TELEGRAM_CHANNEL_ID', 
-    'message_fetching', 
-    'default_chat_id', 
-    None
-)
+TELEGRAM_CHANNEL_ID = os.getenv('DEFAULT_TELEGRAM_CHANNEL_ID')
 
 # ANTHROPIC
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
@@ -85,9 +54,16 @@ DEFAULT_MESSAGE_LIMIT = CONFIG.get('message_fetching', {}).get('default_limit', 
 # Get AI model settings
 OLLAMA_MODEL = CONFIG.get('ai', {}).get('model', 'llama2')
 CLAUDE_MODEL = CONFIG.get('ai', {}).get('claude_model', 'claude-3-5-sonnet-latest')
-SUMMARY_PROMPT_TEMPLATE = CONFIG.get('ai', {}).get('summary_prompt', DEFAULT_SUMMARY_PROMPT)
-OVERALL_PROMPT_TEMPLATE = CONFIG.get('ai', {}).get('overall_prompt', DEFAULT_OVERALL_PROMPT)
-PARTICIPANT_PROMPT_TEMPLATE = CONFIG.get('ai', {}).get('participant_prompt', DEFAULT_PARTICIPANT_PROMPT)
+
+# Define default prompts in case files are not found
+DEFAULT_PROMPT = CONFIG.get('default_prompt', {}).get('system', {}).get('prompt', [])
+
+# Load prompt templates from markdown files
+SUMMARY_PROMPT_TEMPLATE = get_prompt("summary_prompt", DEFAULT_PROMPT)
+OVERALL_PROMPT_TEMPLATE = get_prompt("overall_prompt", DEFAULT_PROMPT)
+PARTICIPANT_PROMPT_TEMPLATE = get_prompt("participant_prompt", DEFAULT_PROMPT)
+UNIFIED_PROMPT_TEMPLATE = get_prompt("unified_prompt", DEFAULT_PROMPT)
+ADDITIONAL_PROMPT_TEMPLATE = get_prompt("additional_prompt", DEFAULT_PROMPT)
 
 # Telegram client configuration
 def get_telegram_client_config() -> Dict[str, str]:

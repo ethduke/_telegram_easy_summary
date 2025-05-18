@@ -14,21 +14,27 @@ logger = logging.getLogger(__name__)
 
 def clean_summary(summary: str) -> str:
     """
-    Remove <think> blocks from summaries if they exist.
+    Clean up a summary text, handling error messages and ensuring it's displayable.
     
     Args:
         summary: The summary text to clean
         
     Returns:
-        Cleaned summary text without thinking blocks
+        Cleaned summary text
     """
     if not summary:
-        return ""
-        
+        return "No summary available."
+    
+    # Handle error messages
+    if summary.startswith("Error generating"):
+        return f"*{summary}*"
+    
+    # Remove thinking blocks if they exist
     if "<think>" in summary and "</think>" in summary:
         think_start = summary.find("<think>")
         think_end = summary.find("</think>") + len("</think>")
         return summary[think_end:].strip()
+    
     return summary
 
 def format_results(results: Dict[str, Any], format_type: str) -> str:
@@ -136,11 +142,12 @@ def write_output(output_text: str, output_file: Optional[str]) -> None:
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(output_text)
-            print(f"Results saved to {output_file}")
+            logger.info(f"Results saved to {output_file}")
         except IOError as e:
             logger.error(f"Error writing to file {output_file}: {e}")
-            print(f"Error writing to file: {e}")
             # Fall back to console output
-            print(output_text)
+            logger.info(output_text)
     else:
-        print(output_text) 
+        # Just log the output instead of printing to console
+        logger.info(output_text)
+        return output_text 

@@ -43,7 +43,7 @@ A Python tool that fetches messages from Telegram chats or channels and generate
    TELEGRAM_API_ID=your_api_id
    TELEGRAM_API_HASH=your_api_hash
    TELEGRAM_STRING_SESSION=your_session_string
-   TELEGRAM_CHANNEL_ID=your_default_channel_id
+   DEFAULT_TELEGRAM_CHANNEL_ID=your_default_channel_id
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
 

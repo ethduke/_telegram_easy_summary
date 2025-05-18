@@ -24,10 +24,9 @@ from utils.config import (
     TELEGRAM_CHANNEL_ID,
     OLLAMA_MODEL,
     CLAUDE_MODEL,
-    OVERALL_PROMPT_TEMPLATE,
-    PARTICIPANT_PROMPT_TEMPLATE,
     DEFAULT_MESSAGE_LIMIT
 )
+from utils.prompt_loader import get_prompt
 from utils.formatters import (
     format_results,
     write_output
@@ -230,7 +229,7 @@ async def generate_summaries(
     model: str
 ) -> Tuple[Optional[str], Dict[str, str]]:
     """
-    Generate overall and participant summaries.
+    Generate overall and participant summaries in a single API call to avoid rate limiting.
     
     Args:
         extended_messages: List of all messages with context
@@ -240,76 +239,123 @@ async def generate_summaries(
     Returns:
         Tuple of (overall summary, participant summaries dictionary)
     """
-    # Format all messages for overall summary
+    # Format all messages with timestamps and participant names
     all_formatted_messages = []
     for msg in sorted(extended_messages, key=lambda m: m["datetime"]):
         # Format differently based on whether it's a forwarded message
         if msg.get("is_forwarded", False):
-            forwarded_from = msg.get("forwarded_from", "Unknown Source")
-            formatted_message = f"[{msg['timestamp']}] {msg['sender_name']} forwarded from {forwarded_from}: {msg['text']}"
+            forwarded_source = msg.get("forwarded_from", "Unknown Source")
+            formatted_message = f"[{msg['timestamp']}] {msg['sender_name']} shared content originally by {forwarded_source}: {msg['text']}"
         else:
             formatted_message = f"[{msg['timestamp']}] {msg['sender_name']}: {msg['text']}"
         all_formatted_messages.append(formatted_message)
     
     all_messages_text = "\n".join(all_formatted_messages)
     
-    # Generate overall summary using the template from config
-    logger.info("Generating overall summary of all messages")
-    overall_summary = await generate_summary_with_ai(
-        all_messages_text, 
-        model,
-        OVERALL_PROMPT_TEMPLATE
-    )
-    
-    # Process participant summaries in parallel
-    participant_summaries = {}
-    
-    async def process_participant(participant, msgs):
-        # Format messages for this participant
-        participant_messages = []
-        for msg in sorted(msgs, key=lambda m: m["datetime"]):
-            # Format differently based on whether it's a forwarded message
-            if msg.get("is_forwarded", False):
-                forwarded_from = msg.get("forwarded_from", "Unknown Source")
-                formatted_message = f"[{msg['timestamp']}] {participant} forwarded from {forwarded_from}: {msg['text']}"
-            else:
-                formatted_message = f"[{msg['timestamp']}] {participant}: {msg['text']}"
-            participant_messages.append(formatted_message)
-        
-        participant_text = "\n".join(participant_messages)
-        
-        # Generate prompt for this participant using the template from config
-        # We need to replace {participant} but keep {messages} for later formatting
-        prompt = PARTICIPANT_PROMPT_TEMPLATE.replace("{participant}", participant)
-        
-        # Generate summary for this participant
+    # Create participants list for the prompt
+    participant_names = list(participants.keys())
+
+    # Extract trader names from messages
+    trader_names = set()
+    for msg in extended_messages:
         try:
-            summary = await generate_summary_with_ai(
-                participant_text,
-                model,
-                prompt
-            )
-            return participant, summary
+            message_text = msg.get("text", "")
+            if "from: 💰" in message_text or "💰" in message_text:
+                # Try multiple approaches to extract trader name
+                if "💰" in message_text and "【" in message_text:
+                    # Extract trader name between 💰 and 【
+                    trader_start = message_text.find("💰") + 1
+                    trader_end = message_text.find("【")
+                    if trader_start > 0 and trader_end > trader_start:
+                        trader_name = message_text[trader_start:trader_end].strip()
+                        if trader_name:  # Only add non-empty names
+                            trader_names.add(trader_name)
+                elif "from: 💰" in message_text:
+                    # Try to extract after "from: 💰"
+                    parts = message_text.split("from: 💰", 1)
+                    if len(parts) > 1 and parts[1].strip():
+                        # Take the first word/segment as the trader name
+                        trader_name = parts[1].split()[0].strip()
+                        if trader_name:
+                            trader_names.add(trader_name)
         except Exception as e:
-            logger.error(f"Error generating summary for {participant}: {e}")
-            return participant, f"Error generating summary: {str(e)}"
+            logger.warning(f"Error extracting trader name: {str(e)}")
+            continue
     
-    # Create tasks for all participants
-    participant_tasks = [
-        process_participant(participant, msgs) 
-        for participant, msgs in participants.items() 
-    ]
+    # Convert set to sorted list for consistent ordering
+    trader_names = sorted(list(trader_names))
+
+    # Load and format the prompt template from file
+    try:
+        # Get the additional prompt template
+        prompt_template = get_prompt("overall_prompt")
+        
+        participants_str = ', '.join(participant_names) if participant_names else 'None'
+        prompt = prompt_template.format(
+            participants=participants_str,
+            messages=all_messages_text
+        )
+    except Exception as e:
+        logger.error(f"Error loading or formatting prompt template: {e}")
+
+    # Make a single API call to generate all summaries
+    logger.info("Generating unified summary for overall conversation and all participants")
     
-    # Execute all participant summary tasks in parallel
-    logger.info(f"Generating summaries for {len(participant_tasks)} participants in parallel")
-    participant_results = await asyncio.gather(*participant_tasks)
-    
-    # Process results
-    for participant, summary in participant_results:
-        if summary:
-            participant_summaries[participant] = summary
+    try:
+        unified_response = await generate_summary_with_ai(
+            all_messages_text,
+            model,
+            prompt
+        )
+        
+        # Parse the response to extract overall summary and participant summaries
+        overall_summary = None
+        participant_summaries = {}
+        
+        # Extract overall summary
+        if "```overall" in unified_response and "```" in unified_response:
+            overall_start = unified_response.find("```overall") + 10
+            overall_end = unified_response.find("```", overall_start)
+            if overall_end > overall_start:
+                overall_summary = unified_response[overall_start:overall_end].strip()
+        
+        # Extract participant summaries
+        if "```participants" in unified_response and "```" in unified_response:
+            participants_start = unified_response.find("```participants") + 14
+            participants_end = unified_response.find("```", participants_start)
+            if participants_end > participants_start:
+                participants_text = unified_response[participants_start:participants_end].strip()
+                
+                # Process each line to extract participant summaries
+                for line in participants_text.split('\n'):
+                    if ']' in line and '[' in line:
+                        # Extract participant name and summary
+                        participant_start = line.find('[') + 1
+                        participant_end = line.find(']')
+                        if participant_end > participant_start:
+                            participant = line[participant_start:participant_end]
+                            summary_start = line.find(':', participant_end) + 1
+                            if summary_start > 0:
+                                summary = line[summary_start:].strip()
+                                participant_summaries[participant] = summary
+                    elif ':' in line:
+                        # Alternative format without brackets
+                        parts = line.split(':', 1)
+                        if len(parts) == 2:
+                            participant = parts[0].strip()
+                            summary = parts[1].strip()
+                            participant_summaries[participant] = summary
+        
+        # If parsing failed, use the entire response as the overall summary
+        if overall_summary is None:
+            overall_summary = unified_response
+            logger.warning("Failed to parse structured response, using entire response as overall summary")
+        
+        return overall_summary, participant_summaries
             
-    return overall_summary, participant_summaries
+    except Exception as e:
+        logger.error(f"Error generating unified summary: {str(e)}")
+        return f"Error generating unified summary: {str(e)}", {}
 
 async def main():
     """Parse command line arguments and run the analyzer."""
@@ -335,7 +381,7 @@ async def main():
     
     if chat_id is None:
         logger.error("No chat ID provided and no default found in config.")
-        print("Error: No chat ID provided. Please specify a chat ID with -c/--chat-id or set TELEGRAM_CHANNEL_ID in your config.")
+        logger.error("Please specify a chat ID with -c/--chat-id or set TELEGRAM_CHANNEL_ID in your config.")
         sys.exit(1)
     
     try:
@@ -356,7 +402,6 @@ async def main():
         
     except Exception as e:
         logger.error(f"Error analyzing messages: {e}")
-        print(f"Error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

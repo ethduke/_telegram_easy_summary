@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Telegram Message Analyzer
 
@@ -276,7 +275,6 @@ class TelegramMessageAnalyzer:
             
             if not dialog:
                 self.logger.warning(f"Could not find dialog for channel {chat_title}")
-                print(f"Could not find dialog for channel {chat_title}")
                 return {
                     "chat_id": getattr(chat_entity, 'id', None),
                     "chat_title": chat_title,
@@ -287,7 +285,6 @@ class TelegramMessageAnalyzer:
             # If no unread messages, return empty result
             if unread_count == 0:
                 self.logger.info(f"No unread messages in channel {chat_title}")
-                print(f"No unread messages in channel {chat_title}")
                 return {
                     "chat_id": getattr(chat_entity, 'id', None),
                     "chat_title": chat_title,
@@ -295,7 +292,6 @@ class TelegramMessageAnalyzer:
                     "unread_messages": []
                 }
             
-            print(f"Found {unread_count} unread messages in {chat_title}, processing...")
             self.logger.info(f"Found {unread_count} unread messages in {chat_title}, fetching...")
             
             # Get unread messages for this dialog
@@ -414,21 +410,12 @@ class TelegramMessageAnalyzer:
             
             # Generate summary of skipped message types
             skipped_summary = ", ".join([f"{count} {msg_type}s" for msg_type, count in skipped_types.items()])
-            
-            # Print final summary
-            print(f"\n==== UNREAD MESSAGES SUMMARY ====")
-            print(f"Channel: {chat_title}")
-            print(f"Total unread messages: {message_count}")
-            print(f"Processed text messages: {actual_unread_count}")
-            
-            if skipped_count > 0:
-                print(f"Skipped non-text messages: {skipped_count} ({skipped_summary})")
+            self.logger.info(f"Summary: {message_count} total, {actual_unread_count} processed, {skipped_count} skipped ({skipped_summary if skipped_count > 0 else ''})")
             
             return chat_info
             
         except Exception as e:
             self.logger.error(f"Error fetching unread messages from channel: {e}")
-            print(f"Error fetching unread messages: {e}")
             return {
                 "chat_id": None,
                 "chat_title": str(channel_id),

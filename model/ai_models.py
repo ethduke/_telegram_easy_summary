@@ -1,3 +1,9 @@
+"""
+AI Models
+
+This module provides functionality to generate summaries using AI models.
+"""
+
 import logging
 from ollama import AsyncClient
 from anthropic import AsyncAnthropic
@@ -6,7 +12,6 @@ from utils.config import (
     SUMMARY_PROMPT_TEMPLATE,
     ANTHROPIC_API_KEY,
     CLAUDE_OUTPUT_TOKENS,
-    CLAUDE_MODEL
 )
 
 logger = logging.getLogger("TelegramMessageAnalyzer")
@@ -24,12 +29,13 @@ async def generate_summary_with_ai(
         messages_text: The text of messages to summarize
         model: The model to use for summarization (determines which provider to use)
         prompt_template: The prompt template to use for the summary
+        max_retries: Maximum number of retries on failure
+        retry_delay: Delay between retries in seconds
         
     Returns:
         The generated summary
     """
     try:
-        # Format the prompt with the message text
         prompt = prompt_template.format(messages=messages_text)
         
         # Determine which provider to use based on the model name
@@ -53,10 +59,9 @@ async def generate_summary_with_ai(
         logger.info("AI summary generated successfully")
         return ai_summary
     except Exception as e:
-        logger.error(f"Error generating AI summary: {e}")
-        return f"Error generating summary: {str(e)}"
+        logger.error(f"Error generating AI summary: {str(e)}")
 
-    
+
 
 
     

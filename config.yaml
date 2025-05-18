@@ -1,12 +1,8 @@
-# =========================
-# Telegram Message Analysis Config
-# =========================
-
 # Message Fetching Settings
 # -------------------------
 # Settings related to fetching messages from Telegram
 message_fetching:
-  default_limit: 1000  # Default number of messages to fetch
+  default_limit: 1500  # Default number of messages to fetch
 
 # AI Model Settings
 # ----------------
@@ -16,55 +12,15 @@ ai:
   claude_model: "claude-3-5-sonnet-latest"
 
   claude_output_tokens: 2048
-  # General summary prompt (kept for backward compatibility)
-  summary_prompt: >
-    Analyze the following Telegram chat messages and create a concise summary organized by participants. 
-    Here are the messages:
 
-    {messages}
+default_prompt:
+  system:
+    prompt:
+      - "You are a helpful assistant that can summarize Telegram messages with conversation context."
+      - "You are given a list of messages and a conversation context."
+      - "You need to summarize the messages with the conversation context."
+      - "You need to return the summary in a structured format."
   
-  # Overall summary prompt for conversation analysis
-  overall_prompt: >
-    Extract a list of all projects, cryptocurrencies, or platforms mentioned in these Telegram chat messages.
-    
-    IMPORTANT:
-    - Your response MUST be in English only
-    - Include ALL specific project names, tickers, and URLs mentioned
-    - For each project, provide exactly ONE brief sentence about what was discussed
-    - Be extremely concise - focus only on factual information
-    - CLEARLY distinguish between regular messages and forwarded content
-    - For forwarded messages, use format: "[Username] forwarded a message about [topic]" 
-    
-    ## Overall Summary
-    
-    Here are the projects mentioned in the conversation:
-    
-    * [Project 1] ([Ticker1]): Brief one-sentence description of what was discussed
-    * [Project 2] ([Ticker2]): Brief one-sentence description of what was discussed - if forwarded, indicate "[Username] forwarded content about this project"
-    * [Project 3]: Brief one-sentence description of what was discussed
-    
-    Here are the messages:
-    
-    {messages}
-  
-  # Participant-specific summary prompt
-  participant_prompt: >
-    Create a very brief summary (2-4 sentences maximum) of {participant}'s key messages in this chat.
-    Focus only on substantive content about projects, opinions, or strategies they mentioned.
-    
-    IMPORTANT:
-    - Your response MUST be in English only, regardless of the language in the messages
-    - Do NOT include any thinking process or notes
-    - Do NOT use <think> or </think> tags
-    - Do NOT use headers or bullet points
-    - Just write 2-4 plain sentences directly
-    - CLEARLY distinguish between {participant}'s original messages and any content they forwarded
-    - For forwarded content, use format: "{participant} forwarded messages about [topic]"
-    
-    Here are {participant}'s messages:
-    
-    {messages}
-
 # Telegram Client Settings
 # -----------------------
 # Configuration for the Telegram client
