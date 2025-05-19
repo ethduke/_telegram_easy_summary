@@ -1,44 +1,20 @@
 # Telegram Easy Summary
 
-A Python tool that fetches messages from Telegram chats or channels and generates AI-powered summaries using Claude 3.5 Sonnet or Ollama models.
+A tool that creates AI-powered summaries of Telegram chat messages using Claude or Ollama models.
 
 ## Features
 
-- Fetch messages from any Telegram channel or group chat
-- Focus on messages from specific users while maintaining conversation context
-- Generate concise AI-powered summaries using Claude 3.5 Sonnet (default) or locally hosted Ollama models
-- Analyze messages by participant, providing quick individual summaries for each user
-- Fetch only unread messages from your channels with a single flag
-- Configurable through `config.yaml`
+- Fetch messages from Telegram channels/chats
+- Focus on specific users while maintaining conversation context
+- Generate summaries using Claude 3.5 Sonnet (default) or Ollama models
+- Analyze messages by participant with individual summaries
+- Fetch only unread messages with a single flag
 
-## Prerequisites
+## Setup
 
-- Python 3.7+
-- Telegram API credentials (API ID and API Hash)
-- Telegram session string
-- Anthropic API key for Claude 3.5 (default model)
-- [Ollama](https://ollama.ai/) installed and running if using Ollama models
-
-## Installation
-
-1. Clone this repository:
-   ```
-   git clone https://github.com/yourusername/telegram-easy-summary.git
-   cd telegram-easy-summary
-   ```
-
-2. Create and activate a virtual environment (recommended):
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-4. Configure your `.env` file with required API credentials:
+1. Clone this repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Configure `.env` file:
    ```
    TELEGRAM_API_ID=your_api_id
    TELEGRAM_API_HASH=your_api_hash
@@ -47,120 +23,45 @@ A Python tool that fetches messages from Telegram chats or channels and generate
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
 
-5. (Optional) Customize settings in `config.yaml`
+## Usage
 
-## Getting Started
-
-### Setting up a Telegram Session
-
-To use this tool, you need a Telegram session string. You can generate one by running the main script without a session string, which will prompt you to log in.
-
-### Basic Usage
-
-Run the basic analyzer:
-```
+```bash
+# Basic usage with default settings
 python main.py
+
+# Custom examples
+python main.py -n 200                              # Fetch 200 messages
+python main.py -c @channel_name                    # Specify channel
+python main.py -u @username1 @username2            # Focus on users
+python main.py -o summary.txt                      # Save to file
+python main.py --unread                            # Only unread messages
+python main.py --model llama3                      # Use Ollama model
 ```
 
-Specify the number of messages to fetch:
-```
-python main.py -n 200
-```
+### Command Options
 
-Specify a different chat ID:
-```
-python main.py -c @channel_name
-```
+- `-c`, `--chat_id`: Chat ID or username (default: from config)
+- `-n`, `--limit`: Max messages to fetch (default: 100)
+- `-u`, `--users`: Users to focus on
+- `-o`, `--output`: Output file path
+- `-m`, `--model`: Model for summarization
+- `--unread`: Fetch only unread messages
 
-Focus on specific users:
-```
-python main.py -u @username1 @username2
-```
+## Customizing Prompts
 
-Save the output to a file:
-```
-python main.py -o summary.txt
-```
+The tool uses separate markdown files for prompts located in `data/prompts/`:
 
-Get only unread messages from your default channel:
-```
-python main.py --unread
-```
+- `example_prompt.md-example`: Main prompt for generating the overall conversation summary
 
-You can combine options:
-```
-python main.py --unread -o unread_summary.txt --model llama3
-```
+To customize prompts:
 
-### Command Line Options
-
-- `-c`, `--chat_id`: Telegram chat ID or username (default: from config)
-- `-n`, `--limit`: Maximum number of messages to fetch (default: 100)
-- `-u`, `--users`: List of users to focus on (optional)
-- `-o`, `--output`: Output file path (optional, output to console if not specified)
-- `-s`, `--summarize`: Enable/disable summarization (default: enabled)
-- `-m`, `--model`: Model to use for summarization (default: claude-3-5-sonnet, can be set to an Ollama model name)
-- `--unread`: Fetch only unread messages from the channel (uses the channel from config if none specified)
-
-## Example Output
-
-Below is an example of the output you might receive when running the summarizer:
-
-```
-**Summary of Telegram Chat Messages**
-The Telegram chat predominantly revolves around discussions of a specific blockchain project, with participants sharing updates, technical details, and coordination plans. Several users are actively engaged in development tasks, discussing implementation challenges and potential solutions.
-
-**Key Points Discussed:**
-1. User1 presented a demo of the project's integration with a specific blockchain platform, receiving positive feedback from other participants.
-2. User2 raised concerns about current transaction handling methods and proposed improvements to the smart contract architecture.
-3. User3 shared updates on a specific integration timeline and requested testing assistance from the team.
-
-**Participant Summaries:**
-
-User1: Actively developing the core modules for the main project and focusing on blockchain integration. Shared technical documentation and resolved several blockers that team members reported in previous meetings.
-
-User2: Primarily focused on smart contract architecture and security aspects. Raised important questions about transaction validation procedures and contributed several pull requests addressing memory optimization issues.
-
-User3: Coordinating integration between multiple projects, providing regular progress updates and sharing resources with the team. Mentioned upcoming deadlines and requested specific testing scenarios from other participants.
+1. Save as the relevant `.md` file in `data/prompts/`
+2. Your changes will be automatically used when running the tool
+3. Use template variables like `{participants}` and `{messages}` in your prompts
 
 ## Configuration
 
-You can customize the behavior of the tool by editing the `config.yaml` file:
-
-- `DEFAULT_MESSAGE_LIMIT`: Default number of messages to fetch
-- `DEFAULT_TELEGRAM_CHANNEL_ID`: Default channel to analyze
-- `DEFAULT_MODEL`: Default model to use for summarization (claude-3-5-sonnet by default)
-- `OLLAMA_MODEL`: Default Ollama model to use if using Ollama
-- `SUMMARY_PROMPT_TEMPLATE`: Prompt Template for generating summaries
-- `telegram_client`: Telegram client configuration options
-
-## Advanced Usage
-
-### Custom Prompts
-
-You can customize the prompts used for summarization by editing the `SUMMARY_PROMPT_TEMPLATE` in `config.yaml`. This allows you to tailor the output format and focus of the summaries to your specific needs.
-
-### Programmatic Use
-
-You can import and use the `TelegramMessageAnalyzer` class in your own Python scripts:
-
-```python
-from model.message_analyzer import TelegramMessageAnalyzer
-import asyncio
-
-async def example():
-    analyzer = TelegramMessageAnalyzer(api_id, api_hash, session_string)
-    await analyzer.start()
-    
-    messages, chat_title = await analyzer.fetch_messages(chat_id, limit=100)
-    conversations = analyzer.organize_messages_by_conversation(messages)
-    
-    # Do something with the conversations
-    
-    await analyzer.disconnect()
-
-asyncio.run(example())
-```
+Edit `config.yaml` to change default settings like message limits, default channel, and model selection.
 
 ## License
 
